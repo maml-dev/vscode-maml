@@ -25,9 +25,9 @@ import {
   print,
   Document,
   ValueNode,
-  ObjectNode,
-  ArrayNode,
+  Element,
   Property,
+  Span,
 } from 'maml-ast'
 
 const connection = createConnection(ProposedFeatures.all)
@@ -65,7 +65,6 @@ function validateDocument(document: TextDocument): void {
   try {
     const doc = parse(text)
     astCache.set(document.uri, doc)
-    checkDuplicateKeys(doc.value, diagnostics)
   } catch (e) {
     astCache.delete(document.uri)
     if (e instanceof SyntaxError) {
@@ -97,21 +96,6 @@ function parseErrorLocation(msg: string): { line: number; column: number } {
 function parseErrorMessage(msg: string): string {
   const idx = msg.indexOf(' on line ')
   return idx !== -1 ? msg.substring(0, idx) : msg
-}
-
-function checkDuplicateKeys(
-  node: ValueNode,
-  diagnostics: Diagnostic[],
-): void {
-  if (node.type === 'Object') {
-    for (const prop of node.properties) {
-      checkDuplicateKeys(prop.value, diagnostics)
-    }
-  } else if (node.type === 'Array') {
-    for (const el of node.elements) {
-      checkDuplicateKeys(el, diagnostics)
-    }
-  }
 }
 
 // --- Completion ---
@@ -166,7 +150,7 @@ connection.onCompletion((params): CompletionItem[] => {
   }
 
   if (context === 'key') {
-    return getKnownKeyCompletions(params.textDocument.uri, offset)
+    return getKnownKeyCompletions(params.textDocument.uri)
   }
 
   return []
@@ -176,7 +160,6 @@ function getCompletionContext(
   text: string,
   offset: number,
 ): 'key' | 'value' | 'unknown' {
-  // Walk backwards to figure out context
   let i = offset - 1
   while (i >= 0 && (text[i] === ' ' || text[i] === '\t')) i--
 
@@ -184,9 +167,7 @@ function getCompletionContext(
   if (i >= 0 && text[i] === ',') return 'value'
   if (i >= 0 && text[i] === '[') return 'value'
 
-  // After newline inside an object = key position; inside array = value
   if (i >= 0 && text[i] === '\n') {
-    // Find enclosing bracket
     let depth = 0
     for (let j = i; j >= 0; j--) {
       if (text[j] === '}' || text[j] === ']') depth++
@@ -205,10 +186,7 @@ function getCompletionContext(
   return 'unknown'
 }
 
-function getKnownKeyCompletions(
-  uri: string,
-  _offset: number,
-): CompletionItem[] {
+function getKnownKeyCompletions(uri: string): CompletionItem[] {
   const doc = astCache.get(uri)
   if (!doc) return []
 
@@ -231,7 +209,7 @@ function collectKeys(node: ValueNode, keys: Set<string>): void {
     }
   } else if (node.type === 'Array') {
     for (const el of node.elements) {
-      collectKeys(el, keys)
+      collectKeys(el.value, keys)
     }
   }
 }
@@ -273,7 +251,7 @@ function findNodeAtOffset(
     }
   } else if (node.type === 'Array') {
     for (const el of node.elements) {
-      const found = findNodeAtOffset(el, offset)
+      const found = findNodeAtOffset(el.value, offset)
       if (found) return found
     }
   }
@@ -336,14 +314,14 @@ function propertyToSymbol(prop: Property): DocumentSymbol {
   }
 }
 
-function elementToSymbol(node: ValueNode, index: number): DocumentSymbol {
-  const children = getSymbols(node)
+function elementToSymbol(el: Element, index: number): DocumentSymbol {
+  const children = getSymbols(el.value)
   return {
     name: `[${index}]`,
-    detail: node.type,
-    kind: valueToSymbolKind(node),
-    range: spanToRange(node.span),
-    selectionRange: spanToRange(node.span),
+    detail: el.value.type,
+    kind: valueToSymbolKind(el.value),
+    range: spanToRange(el.value.span),
+    selectionRange: spanToRange(el.value.span),
     children,
   }
 }
@@ -367,7 +345,7 @@ function valueToSymbolKind(node: ValueNode): SymbolKind {
   }
 }
 
-function spanToRange(span: { start: { line: number; column: number }; end: { line: number; column: number } }): Range {
+function spanToRange(span: Span): Range {
   return {
     start: Position.create(Math.max(0, span.start.line - 1), Math.max(0, span.start.column - 1)),
     end: Position.create(Math.max(0, span.end.line - 1), Math.max(0, span.end.column - 1)),
@@ -380,9 +358,9 @@ function spanToRange(span: { start: { line: number; column: number }; end: { lin
 // delimiter. If that character is a newline, line is incremented and
 // column resets to 0. This helper returns the 0-based line of the
 // closing delimiter itself (e.g. `}`, `]`, or `"""`).
-function endLine0(span: { end: { line: number; column: number } }): number {
+function endLine0(span: Span): number {
   return span.end.column === 0
-    ? span.end.line - 2 // delimiter was followed by newline
+    ? span.end.line - 2
     : span.end.line - 1
 }
 
@@ -414,7 +392,7 @@ function collectFoldingRanges(
     }
   } else if (node.type === 'Array') {
     for (const el of node.elements) {
-      collectFoldingRanges(el, ranges)
+      collectFoldingRanges(el.value, ranges)
     }
   }
 
@@ -437,7 +415,6 @@ function collectCommentFoldingRanges(
 
   commentLines.sort((a, b) => a - b)
 
-  // Group consecutive comment lines
   let groupStart = commentLines[0]
   let prev = commentLines[0]
   for (let i = 1; i < commentLines.length; i++) {
@@ -466,7 +443,7 @@ function collectCommentFoldingRanges(
 
 function gatherCommentLines(doc: Document, lines: number[]): void {
   for (const c of doc.leadingComments) lines.push(c.span.start.line - 1)
-  for (const c of doc.trailingComments) lines.push(c.span.start.line - 1)
+  for (const c of doc.danglingComments) lines.push(c.span.start.line - 1)
   gatherCommentLinesFromValue(doc.value, lines)
 }
 
@@ -475,16 +452,18 @@ function gatherCommentLinesFromValue(
   lines: number[],
 ): void {
   if (node.type === 'Object') {
-    for (const c of node.innerComments) lines.push(c.span.start.line - 1)
+    for (const c of node.danglingComments) lines.push(c.span.start.line - 1)
     for (const prop of node.properties) {
       for (const c of prop.leadingComments) lines.push(c.span.start.line - 1)
       if (prop.trailingComment) lines.push(prop.trailingComment.span.start.line - 1)
       gatherCommentLinesFromValue(prop.value, lines)
     }
   } else if (node.type === 'Array') {
-    for (const c of node.innerComments) lines.push(c.span.start.line - 1)
+    for (const c of node.danglingComments) lines.push(c.span.start.line - 1)
     for (const el of node.elements) {
-      gatherCommentLinesFromValue(el, lines)
+      for (const c of el.leadingComments) lines.push(c.span.start.line - 1)
+      if (el.trailingComment) lines.push(el.trailingComment.span.start.line - 1)
+      gatherCommentLinesFromValue(el.value, lines)
     }
   }
 }

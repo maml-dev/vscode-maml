@@ -2,7 +2,7 @@
   "name": "vscode-maml",
   "displayName": "MAML Language",
   "description": "MAML language support for Visual Studio Code",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "maml",
   "license": "MIT",
   "repository": {
@@ -75,7 +75,7 @@
     "@types/vscode": "^1.75.0",
     "@vscode/vsce": "^3.3.2",
     "esbuild": "^0.27.4",
-    "maml-ast": "^0.0.1",
+    "maml-ast": "^0.0.2",
     "typescript": "^5.9.3",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
