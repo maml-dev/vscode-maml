@@ -13,6 +13,7 @@
     "url": "https://github.com/maml-dev/vscode-maml/issues"
   },
   "homepage": "https://maml.dev",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.75.0"
   },

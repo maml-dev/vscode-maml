@@ -4,5 +4,7 @@
 **/*.ts
 **/*.map
 .vscode/**
+.idea/**
+.gitignore
 tsconfig.json
 **/*.vsix
