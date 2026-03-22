@@ -1,0 +1,83 @@
+{
+  "name": "vscode-maml",
+  "displayName": "MAML",
+  "description": "MAML language support for Visual Studio Code",
+  "version": "0.0.1",
+  "publisher": "maml-dev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maml-dev/vscode-maml"
+  },
+  "bugs": {
+    "url": "https://github.com/maml-dev/vscode-maml/issues"
+  },
+  "homepage": "https://maml.dev",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:maml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "maml",
+        "aliases": [
+          "MAML",
+          "maml"
+        ],
+        "extensions": [
+          ".maml"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "maml",
+        "scopeName": "source.maml",
+        "path": "./syntaxes/maml.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "MAML",
+      "properties": {
+        "maml.validate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable MAML validation"
+        },
+        "maml.format.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable/disable MAML formatting"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts src/server.ts --bundle --outdir=dist --external:vscode --format=cjs --platform=node --target=node18 --sourcemap",
+    "watch": "npm run build -- --watch",
+    "package": "vsce package",
+    "lint": "tsc --noEmit",
+    "prepackage": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0",
+    "@vscode/vsce": "^3.3.2",
+    "esbuild": "^0.27.4",
+    "maml-ast": "^0.0.1",
+    "typescript": "^5.9.3",
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  }
+}
