@@ -1,9 +1,9 @@
 {
   "name": "vscode-maml",
-  "displayName": "MAML",
+  "displayName": "MAML Language",
   "description": "MAML language support for Visual Studio Code",
   "version": "0.0.1",
-  "publisher": "maml-dev",
+  "publisher": "maml",
   "license": "MIT",
   "repository": {
     "type": "git",

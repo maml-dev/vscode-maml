@@ -376,12 +376,23 @@ function spanToRange(span: { start: { line: number; column: number }; end: { lin
 
 // --- Folding Ranges ---
 
+// The MAML AST span.end points to the character AFTER the closing
+// delimiter. If that character is a newline, line is incremented and
+// column resets to 0. This helper returns the 0-based line of the
+// closing delimiter itself (e.g. `}`, `]`, or `"""`).
+function endLine0(span: { end: { line: number; column: number } }): number {
+  return span.end.column === 0
+    ? span.end.line - 2 // delimiter was followed by newline
+    : span.end.line - 1
+}
+
 connection.onFoldingRanges((params): FoldingRange[] => {
   const doc = astCache.get(params.textDocument.uri)
   if (!doc) return []
 
   const ranges: FoldingRange[] = []
   collectFoldingRanges(doc.value, ranges)
+  collectCommentFoldingRanges(doc, ranges)
   return ranges
 })
 
@@ -391,13 +402,9 @@ function collectFoldingRanges(
 ): void {
   if (node.type === 'Object' || node.type === 'Array') {
     const startLine = node.span.start.line - 1
-    const endLine = node.span.end.line - 1
+    const endLine = endLine0(node.span)
     if (endLine > startLine) {
-      ranges.push({
-        startLine,
-        endLine,
-        kind: FoldingRangeKind.Region,
-      })
+      ranges.push({ startLine, endLine, kind: FoldingRangeKind.Region })
     }
   }
 
@@ -413,13 +420,71 @@ function collectFoldingRanges(
 
   if (node.type === 'RawString') {
     const startLine = node.span.start.line - 1
-    const endLine = node.span.end.line - 1
+    const endLine = endLine0(node.span)
     if (endLine > startLine) {
-      ranges.push({
-        startLine,
-        endLine,
-        kind: FoldingRangeKind.Region,
-      })
+      ranges.push({ startLine, endLine, kind: FoldingRangeKind.Region })
+    }
+  }
+}
+
+function collectCommentFoldingRanges(
+  doc: Document,
+  ranges: FoldingRange[],
+): void {
+  const commentLines: number[] = []
+  gatherCommentLines(doc, commentLines)
+  if (commentLines.length < 2) return
+
+  commentLines.sort((a, b) => a - b)
+
+  // Group consecutive comment lines
+  let groupStart = commentLines[0]
+  let prev = commentLines[0]
+  for (let i = 1; i < commentLines.length; i++) {
+    if (commentLines[i] === prev + 1) {
+      prev = commentLines[i]
+    } else {
+      if (prev > groupStart) {
+        ranges.push({
+          startLine: groupStart,
+          endLine: prev,
+          kind: FoldingRangeKind.Comment,
+        })
+      }
+      groupStart = commentLines[i]
+      prev = commentLines[i]
+    }
+  }
+  if (prev > groupStart) {
+    ranges.push({
+      startLine: groupStart,
+      endLine: prev,
+      kind: FoldingRangeKind.Comment,
+    })
+  }
+}
+
+function gatherCommentLines(doc: Document, lines: number[]): void {
+  for (const c of doc.leadingComments) lines.push(c.span.start.line - 1)
+  for (const c of doc.trailingComments) lines.push(c.span.start.line - 1)
+  gatherCommentLinesFromValue(doc.value, lines)
+}
+
+function gatherCommentLinesFromValue(
+  node: ValueNode,
+  lines: number[],
+): void {
+  if (node.type === 'Object') {
+    for (const c of node.innerComments) lines.push(c.span.start.line - 1)
+    for (const prop of node.properties) {
+      for (const c of prop.leadingComments) lines.push(c.span.start.line - 1)
+      if (prop.trailingComment) lines.push(prop.trailingComment.span.start.line - 1)
+      gatherCommentLinesFromValue(prop.value, lines)
+    }
+  } else if (node.type === 'Array') {
+    for (const c of node.innerComments) lines.push(c.span.start.line - 1)
+    for (const el of node.elements) {
+      gatherCommentLinesFromValue(el, lines)
     }
   }
 }

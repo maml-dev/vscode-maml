@@ -17,10 +17,7 @@
     { "open": "\"", "close": "\"" }
   ],
   "folding": {
-    "markers": {
-      "start": "^\\s*[{\\[]",
-      "end": "^\\s*[}\\]]"
-    }
+    "offSide": false
   },
   "indentationRules": {
     "increaseIndentPattern": "^.*[{\\[]\\s*$",
