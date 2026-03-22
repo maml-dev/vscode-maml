@@ -369,8 +369,8 @@ function valueToSymbolKind(node: ValueNode): SymbolKind {
 
 function spanToRange(span: { start: { line: number; column: number }; end: { line: number; column: number } }): Range {
   return {
-    start: Position.create(span.start.line - 1, span.start.column - 1),
-    end: Position.create(span.end.line - 1, span.end.column - 1),
+    start: Position.create(Math.max(0, span.start.line - 1), Math.max(0, span.start.column - 1)),
+    end: Position.create(Math.max(0, span.end.line - 1), Math.max(0, span.end.column - 1)),
   }
 }
 
