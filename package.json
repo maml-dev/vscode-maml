@@ -71,12 +71,12 @@
     "prepackage": "npm run build"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/vscode": "^1.75.0",
-    "@vscode/vsce": "^3.3.2",
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.110.0",
+    "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.27.4",
-    "maml-ast": "^0.0.2",
-    "typescript": "^5.9.3",
+    "maml-ast": "^1.0.0",
+    "typescript": "^6.0.2",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"
